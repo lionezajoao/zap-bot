@@ -1,0 +1,19 @@
+{
+  "name": "whatsjs",
+  "description": "1- Montar aplicação base 2- Instanciar client para não precisar reescanear toda vez",
+  "version": "1.0.0",
+  "main": "main.js",
+  "type": "module",
+  "dependencies": {
+    "nodemon": "^3.0.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.21.0"
+  },
+  "scripts": {
+    "start": "nodemon main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
