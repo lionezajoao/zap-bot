@@ -2,6 +2,7 @@ import fs from "fs";
 import qrcode from 'qrcode-terminal';
 import wpp from 'whatsapp-web.js';
 
+
 export default class Messages {
     constructor(){}
 
@@ -10,21 +11,29 @@ export default class Messages {
             authStrategy: new wpp.LocalAuth(),
         });
 
-        this.client.on("auth_failure", () => {
-            this.client.on('qr', qr => {
-                qrcode.generate(qr, { small: true });
-            });
-        })
+        this.client.on('loading_screen', (percent, message) => {
+            console.log('', percent, message);
+        });
+
+        this.client.on('qr', (qr) => {
+            console.log('[!] Scan QR Code Bellow');
+            qrcode.generate(qr, { small: true });
+        });
+
+        this.client.on('authenticated', () => {
+            console.log(`✓ Authenticated!`)
+          });
+        
+        this.client.on('auth_failure', (msg) => {
+            console.error('Authentication Failure!', msg);
+          });
 
         this.client.on('ready', () => {
             console.log('Client is ready!');
+            this.client.sendPresenceUnavailable();
         });
         
         this.client.initialize();
-    }
-
-    static async getConnState() {
-        console.log(this.client.getState());
     }
 
     static handleCommand(command, response) {
