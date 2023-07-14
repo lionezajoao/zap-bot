@@ -9,6 +9,9 @@ export default class Messages {
     static connect() {
         this.client = new wpp.Client({
             authStrategy: new wpp.LocalAuth(),
+            puppeteer: {
+                args: ['--no-sandbox'],
+            }
         });
 
         this.client.on('loading_screen', (percent, message) => {
