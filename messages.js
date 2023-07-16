@@ -1,10 +1,12 @@
-import fs from "fs";
 import qrcode from 'qrcode-terminal';
 import wpp from 'whatsapp-web.js';
 
+import Utils from './utils.js';
 
-export default class Messages {
-    constructor(){}
+export default class Messages extends Utils {
+    constructor(){
+        super();
+    }
 
     static connect() {
         this.client = new wpp.Client({
@@ -39,35 +41,100 @@ export default class Messages {
         this.client.initialize();
     }
 
-    static handleCommand(command, response) {
-        this.client.on('message', message => {
-            if(message.body === command) {
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply(response);
-            }
-        });
-    }
-
-    static sendMediaMessage(command, mediaPath) {
-        const newMedia = wpp.MessageMedia.fromFilePath(mediaPath)
-        this.client.on('message', message => {
-            if(message.body === command) {
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply(newMedia);
-            }
-        });
-    }
-
-    static sendVideoMessage(command, mediaPath) {
-        const newMedia = wpp.MessageMedia.fromFilePath(mediaPath);
+    static runCommands() {
         this.client.on("message", message => {
-            if(message.body === command) {
-                this.client.sendMessage(message.from, newMedia);
-            }
+            this.handleCommands(message)
         });
     }
 
-    static loveMail() {
+    static handleCommands(message) {
+        let newMedia;
+        const command = message.body;
+        
+        switch (command) {
+
+            case "!help":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                message.reply(this.removeIndentation(`
+                *!querida* -> Uma mensagem fofa
+                *!teste* -> Outra mensagem fofa
+                *!duvido* -> Uma ajuda fofa
+                *!vampeta* -> Uma foto fofa
+                *!vampetasso* -> Uma foto mais fofa
+                *!gatinho* -> Um gatinho fofo
+                *!vasco* -> Um time fofo
+                `));
+                break;
+
+            case "!ajuda":
+                console.log(`Command ${ command } called from ${ message.from }`);
+
+                message.reply(this.removeIndentation(`
+                Bem-vinde ao Sarraiálcool! Aqui está o menu de opções do bot:
+                
+                *!curreio* -> Envie um correio amoroso de forma anônima para ser lido no microfone!
+                Exemplo !curreio 'sua mensagem aqui'
+                
+                *!karaoke* -> Receba nossa lista de músicas aqui pelo WhatsApp!
+
+                Qualquer dúvida fale com Gabriel, João Pedro ou alguém sóbrio.
+                Aproveite a festa!
+                `));
+                break;
+            
+                case "!querida":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                message.reply("QUERIDA É MINHA XERECA");
+                break;
+            
+            case "!teste":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                message.reply("VAI TOMAR NO CU PIRANHA");
+                break;
+            
+            case "!vampeta":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                newMedia = wpp.MessageMedia.fromFilePath("./media/vampeta.jpg");
+                    message.reply(newMedia);
+                break;
+            
+            case "!vampetasso":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                newMedia = wpp.MessageMedia.fromFilePath("./media/vampetasso.jpeg");
+                    message.reply(newMedia);
+                break;
+            
+            case "!gatinho":
+                newMedia = wpp.MessageMedia.fromFilePath("./media/miau.mp3");
+                console.log(`Command ${ command } called from ${ message.from }`);
+                    message.reply(newMedia);
+                break;
+            
+            case "!vasco":
+                newMedia = wpp.MessageMedia.fromFilePath("./media/vascao.jpeg");
+                console.log(`Command ${ command } called from ${ message.from }`);
+                    message.reply(newMedia);
+                break;
+            
+            case "!karaoke":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                newMedia = wpp.MessageMedia.fromFilePath("./media/nacionais.pdf");
+                message.reply(newMedia);
+                newMedia = wpp.MessageMedia.fromFilePath("./media/internacionais.pdf");
+                message.reply(newMedia);
+                break;
+            
+            default:
+                if (command.startsWith("!curreio")) {
+                    console.log(`Command ${command} called from ${message.from}`);
+                    this.loveMail(message);
+                  }
+                break;
+        }
+
+    }
+
+    static loveMail(message) {
         const responses = [
             "Ta precisando fuder hein...\nTomara que consiga!",
             "Que esse curreio te dê sorte!\nCurta o Sarraiálcool!",
@@ -77,19 +144,17 @@ export default class Messages {
             "Você precisa mandar alguma mensagem né coisa burra",
             "Sabe chegar em ninguém não, arrombade? Tu esqueceu da mensagem!"
         ]
-        this.client.on('message', message => {
-            console.log(`Command !curreio called from ${ message.from }`);
-            if(message.body.startsWith("!curreio")) {
-                const reply = message.body.split("!curreio");
-                if(reply[1] == "") {
-                    message.reply(meanResponses[Math.floor(Math.random()*responses.length)]);
-                } else {
-                    message.reply(`${ responses[Math.floor(Math.random()*responses.length)] }\n\nAgora, beba essa quantidade de shots: ${ Math.floor(Math.random()*5 + 1) }`);
-                    this.client.sendMessage("120363143055632545@g.us", `*NOVO CORREIO!*\n\n${ reply[1] }`);
-                }
-                
+
+        if(message.body.startsWith("!curreio")) {
+            const reply = message.body.split("!curreio");
+            if(reply[1] == "") {
+                message.reply(meanResponses[Math.floor(Math.random()*responses.length)]);
+            } else {
+                message.reply(`${ responses[Math.floor(Math.random()*responses.length)] }\n\nAgora, beba essa quantidade de shots: ${ Math.floor(Math.random()*5 + 1) }`);
+                this.client.sendMessage("120363143055632545@g.us", `*NOVO CORREIO!*\n\n${ reply[1] }`);
             }
-        })
+            
+        }
     }
 
 }
