@@ -1,20 +1,52 @@
-import qrcode from 'qrcode-terminal';
+import { MongoStore } from "wwebjs-mongo";
+import mongoose from "mongoose";
 import wpp from 'whatsapp-web.js';
+import qrcode from 'qrcode-terminal';
+import dotenv from 'dotenv'
+dotenv.config({ path: "./.env" })
 
-import Utils from './utils.js';
+import Utils from '../utils.js';
 
 export default class Messages extends Utils {
     constructor(){
         super();
     }
 
-    static connect() {
-        this.client = new wpp.Client({
-            authStrategy: new wpp.LocalAuth(),
-            puppeteer: {
-                args: ['--no-sandbox'],
-            }
-        });
+    static async connect() {
+
+        try {
+            await mongoose.connect("mongodb://127.0.0.1/whatsjs", {
+                    useNewUrlParser: true,
+                    useUnifiedTopology: true
+                })
+            .then(()=> {
+                const store = new MongoStore({ mongoose });
+                this.client = new wpp.Client({
+                    authStrategy: new wpp.RemoteAuth({
+                        store,
+                        clientId: "test",
+                        backupSyncIntervalMs: 300000,
+                    }),
+                    puppeteer: {
+                        args: ['--no-sandbox'],
+                    }
+                });
+            })
+        } catch(err) {
+            throw new Error(err);
+        }
+        
+        // this.client = new wpp.Client({
+        //     authStrategy: new wpp.LocalAuth(),
+        //     puppeteer: {
+        //         args: ['--no-sandbox'],
+        //     }
+        // });
+
+        this.client.on("remote_session_saved", () => {
+            console.log("remote session exist");
+            socket.emit("wa_ready", { status: true });
+          });
 
         this.client.on('loading_screen', (percent, message) => {
             console.log('', percent, message);
@@ -82,9 +114,14 @@ export default class Messages extends Utils {
                 `));
                 break;
             
-                case "!querida":
+            case "!querida":
                 console.log(`Command ${ command } called from ${ message.from }`);
                 message.reply("QUERIDA É MINHA XERECA");
+                break;
+            
+                case "!duvido":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                message.reply("MEU PAU NO SEU OUVIDO");
                 break;
             
             case "!teste":

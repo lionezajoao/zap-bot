@@ -1,7 +1,7 @@
-import Messages from "./messages.js";
+import Messages from "./src/messages.js";
 
 const main = async () => {
-    Messages.connect();
+    await Messages.connect();
     Messages.runCommands();
 }
 
