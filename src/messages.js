@@ -1,51 +1,88 @@
 import { MongoStore } from "wwebjs-mongo";
 import mongoose from "mongoose";
-import wpp from 'whatsapp-web.js';
+import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
-import dotenv from 'dotenv'
-dotenv.config({ path: "./.env" })
+
+const { Client, LocalAuth, RemoteAuth, MessageMedia, Poll, GroupChat } = pkg;
 
 import Utils from '../utils.js';
+import SessionHandler from './sessionHandler.js';
 
 export default class Messages extends Utils {
     constructor(){
         super();
     }
 
-    static async connect() {
+    static async connect(local = false) {
+
+        const puppeteer_args = {
+            headless: true,
+            executablePath: "/usr/bin/chromium",
+            args: [
+                '--aggressive-cache-discard',
+                '--disable-accelerated-2d-canvas',
+                '--disable-application-cache',
+                '--disable-background-networking',
+                '--disable-cache',
+                '--disable-client-side-phishing-detection',
+                '--disable-component-update',
+                '--disable-default-apps',
+                '--disable-dev-shm-usage',
+                '--disable-extensions',
+                '--disable-gpu',
+                '--disable-offer-store-unmasked-wallet-cards',
+                '--disable-offline-load-stale-cache',
+                '--disable-popup-blocking',
+                '--disable-setuid-sandbox',
+                '--disable-speech-api',
+                '--disable-sync',
+                '--disable-translate',
+                '--disable-web-security',
+                '--disk-cache-size=0',
+                '--hide-scrollbars',
+                '--ignore-certificate-errors',
+                '--ignore-ssl-errors',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--no-first-run',
+                '--no-pings',
+                '--no-sandbox',
+                '--no-zygote',
+                '--password-store=basic',
+                '--safebrowsing-disable-auto-update',
+                '--use-mock-keychain',
+            ]
+        };
 
         try {
-            await mongoose.connect("mongodb://127.0.0.1/whatsjs", {
-                    useNewUrlParser: true,
-                    useUnifiedTopology: true
-                })
-            .then(()=> {
-                const store = new MongoStore({ mongoose });
-                this.client = new wpp.Client({
-                    authStrategy: new wpp.RemoteAuth({
-                        store,
-                        clientId: "test",
-                        backupSyncIntervalMs: 300000,
-                    }),
-                    puppeteer: {
-                        args: ['--no-sandbox'],
-                    }
+            if (local) {
+                this.client = new Client({
+                    authStrategy: new LocalAuth(),
+                    puppeteer: puppeteer_args
                 });
-            })
+            } else {
+                const sessionHandler = new SessionHandler();
+                await sessionHandler.setStore()
+    
+                console.log("Store set");
+    
+                this.client = new Client({
+                    authStrategy: new RemoteAuth({
+                        clientId: 'Bot',
+                        dataPath: '../wwebjs-auth',
+                        store: sessionHandler.store,
+                        backupSyncIntervalMs: 600000
+                    }),
+                    puppeteer: puppeteer_args
+                });
+            }
         } catch(err) {
             throw new Error(err);
         }
-        
-        // this.client = new wpp.Client({
-        //     authStrategy: new wpp.LocalAuth(),
-        //     puppeteer: {
-        //         args: ['--no-sandbox'],
-        //     }
-        // });
 
         this.client.on("remote_session_saved", () => {
             console.log("remote session exist");
-            socket.emit("wa_ready", { status: true });
           });
 
         this.client.on('loading_screen', (percent, message) => {
@@ -74,12 +111,12 @@ export default class Messages extends Utils {
     }
 
     static runCommands() {
-        this.client.on("message", message => {
-            this.handleCommands(message)
+        this.client.on("message", async (message) => {
+            await this.handleCommands(message)
         });
     }
 
-    static handleCommands(message) {
+    static async handleCommands(message) {
         let newMedia;
         const command = message.body;
         
@@ -87,7 +124,7 @@ export default class Messages extends Utils {
 
             case "!help":
                 console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply(this.removeIndentation(`
+                message.reply(this.removeIdentation(`
                 *!querida* -> Uma mensagem fofa
                 *!teste* -> Outra mensagem fofa
                 *!duvido* -> Uma ajuda fofa
@@ -131,35 +168,39 @@ export default class Messages extends Utils {
             
             case "!vampeta":
                 console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = wpp.MessageMedia.fromFilePath("./media/vampeta.jpg");
+                newMedia = MessageMedia.fromFilePath("./media/vampeta.jpg");
                     message.reply(newMedia);
                 break;
             
             case "!vampetasso":
                 console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = wpp.MessageMedia.fromFilePath("./media/vampetasso.jpeg");
+                newMedia = MessageMedia.fromFilePath("./media/vampetasso.jpeg");
                     message.reply(newMedia);
                 break;
             
             case "!gatinho":
-                newMedia = wpp.MessageMedia.fromFilePath("./media/miau.mp3");
+                newMedia = MessageMedia.fromFilePath("./media/miau.mp3");
                 console.log(`Command ${ command } called from ${ message.from }`);
                     message.reply(newMedia);
                 break;
             
             case "!vasco":
-                newMedia = wpp.MessageMedia.fromFilePath("./media/vascao.jpeg");
+                newMedia = MessageMedia.fromFilePath("./media/vascao.jpeg");
                 console.log(`Command ${ command } called from ${ message.from }`);
                     message.reply(newMedia);
                 break;
             
             case "!karaoke":
                 console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = wpp.MessageMedia.fromFilePath("./media/nacionais.pdf");
+                newMedia = MessageMedia.fromFilePath("./media/nacionais.pdf");
                 message.reply(newMedia);
-                newMedia = wpp.MessageMedia.fromFilePath("./media/internacionais.pdf");
+                newMedia = MessageMedia.fromFilePath("./media/internacionais.pdf");
                 message.reply(newMedia);
                 break;
+            
+            case "!all":
+                console.log(`Command ${ command } called from ${ message.from }`);
+                await this.mentionAll(message);
             
             default:
                 if (command.startsWith("!curreio")) {
@@ -169,6 +210,21 @@ export default class Messages extends Utils {
                 break;
         }
 
+    }
+    
+    static async mentionAll(message) {
+        const chat = await message.getChat();
+        if (!chat.isGroup) return message.reply('Esse comando só funciona em grupos!');
+        
+        let text = '';
+        let mentions = [];
+
+        for (let participant of chat.participants) {
+            mentions.push(`${participant.id.user}@c.us`);
+            text += `@${participant.id.user} `;
+        }
+
+        await chat.sendMessage(text, { mentions });
     }
 
     static loveMail(message) {

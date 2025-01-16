@@ -1,7 +1,7 @@
 import fs from "fs";
 
 export default class Utils {
-    static removeIndentation(str) {
+    static removeIdentation(str) {
         const lines = str.split('\n');
         const leadingWhitespace = lines[1].match(/^\s*/)[0];
         const pattern = new RegExp(`^${leadingWhitespace}`);
