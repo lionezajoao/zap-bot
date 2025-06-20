@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  zap-bot:
+    image: lionezajoao/zap-bot:latest
+    container_name: zap-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/src/system
+    env_file:
+      - .env
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+volumes:
+  mongo-data:
+    driver: local

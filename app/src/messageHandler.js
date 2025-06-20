@@ -1,23 +1,23 @@
-import { MongoStore } from "wwebjs-mongo";
-import mongoose from "mongoose";
 import pkg from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 
-const { Client, LocalAuth, RemoteAuth, MessageMedia, Poll, GroupChat } = pkg;
+const { Client, LocalAuth, RemoteAuth, MessageMedia } = pkg;
 
-import Utils from '../utils.js';
+import Utils from './utils.js';
 import SessionHandler from './sessionHandler.js';
 
 export default class Messages extends Utils {
-    constructor(){
+    constructor(botDB) {
         super();
+        this.botDB = botDB;
     }
 
-    static async connect(local = false) {
+    async connect(local = false) {
+
+        await this.botDB.connectDB();
 
         const puppeteer_args = {
             headless: true,
-            executablePath: "/usr/bin/chromium",
             args: [
                 '--aggressive-cache-discard',
                 '--disable-accelerated-2d-canvas',
@@ -59,7 +59,10 @@ export default class Messages extends Utils {
             if (local) {
                 this.client = new Client({
                     authStrategy: new LocalAuth(),
-                    puppeteer: puppeteer_args
+                    puppeteer: {
+                        ...puppeteer_args,
+                        executablePath: process.env.EXECUTABLE_PATH
+                    }
                 });
             } else {
                 const sessionHandler = new SessionHandler();
@@ -74,7 +77,10 @@ export default class Messages extends Utils {
                         store: sessionHandler.store,
                         backupSyncIntervalMs: 600000
                     }),
-                    puppeteer: puppeteer_args
+                    puppeteer: {
+                        ...puppeteer_args,
+                        executablePath: process.env.EXECUTABLE_PATH
+                    }
                 });
             }
         } catch(err) {
@@ -110,109 +116,74 @@ export default class Messages extends Utils {
         this.client.initialize();
     }
 
-    static runCommands() {
+    runCommands() {
         this.client.on("message", async (message) => {
             await this.handleCommands(message)
         });
     }
 
-    static async handleCommands(message) {
-        let newMedia;
+    async handleCommands(message) {
         const command = message.body;
-        
-        switch (command) {
+        const chat = await message.getChat();
 
-            case "!help":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply(this.removeIdentation(`
-                *!querida* -> Uma mensagem fofa
-                *!teste* -> Outra mensagem fofa
-                *!duvido* -> Uma ajuda fofa
-                *!vampeta* -> Uma foto fofa
-                *!vampetasso* -> Uma foto mais fofa
-                *!gatinho* -> Um gatinho fofo
-                *!vasco* -> Um time fofo
-                `));
-                break;
+        if (!command.startsWith("!")) return;
 
-            case "!ajuda":
-                console.log(`Command ${ command } called from ${ message.from }`);
-
-                message.reply(this.removeIndentation(`
-                Bem-vinde ao Sarraiálcool! Aqui está o menu de opções do bot:
-                
-                *!curreio* -> Envie um correio amoroso de forma anônima para ser lido no microfone!
-                Exemplo !curreio 'sua mensagem aqui'
-                
-                *!karaoke* -> Receba nossa lista de músicas aqui pelo WhatsApp!
-
-                Qualquer dúvida fale com Gabriel, João Pedro ou alguém sóbrio.
-                Aproveite a festa!
-                `));
-                break;
-            
-            case "!querida":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply("QUERIDA É MINHA XERECA");
-                break;
-            
-                case "!duvido":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply("MEU PAU NO SEU OUVIDO");
-                break;
-            
-            case "!teste":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                message.reply("VAI TOMAR NO CU PIRANHA");
-                break;
-            
-            case "!vampeta":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = MessageMedia.fromFilePath("./media/vampeta.jpg");
-                    message.reply(newMedia);
-                break;
-            
-            case "!vampetasso":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = MessageMedia.fromFilePath("./media/vampetasso.jpeg");
-                    message.reply(newMedia);
-                break;
-            
-            case "!gatinho":
-                newMedia = MessageMedia.fromFilePath("./media/miau.mp3");
-                console.log(`Command ${ command } called from ${ message.from }`);
-                    message.reply(newMedia);
-                break;
-            
-            case "!vasco":
-                newMedia = MessageMedia.fromFilePath("./media/vascao.jpeg");
-                console.log(`Command ${ command } called from ${ message.from }`);
-                    message.reply(newMedia);
-                break;
-            
-            case "!karaoke":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                newMedia = MessageMedia.fromFilePath("./media/nacionais.pdf");
-                message.reply(newMedia);
-                newMedia = MessageMedia.fromFilePath("./media/internacionais.pdf");
-                message.reply(newMedia);
-                break;
-            
-            case "!all":
-                console.log(`Command ${ command } called from ${ message.from }`);
-                await this.mentionAll(message);
-            
-            default:
-                if (command.startsWith("!curreio")) {
-                    console.log(`Command ${command} called from ${message.from}`);
-                    this.loveMail(message);
-                  }
-                break;
+        if (command === "!all") {
+            console.log(`Command ${ command } called from ${ message.from }`);
+            return await this.mentionAll(message);
         }
 
+        if (command === "!help" || command === "!ajuda") {
+            console.log(`Command ${ command } called from ${ message.from }`);
+            let text = `*Comandos disponíveis:*\n\n`;
+            const commands = await this.botDB.listCommands();
+            if (commands && commands.length > 0) {
+                commands.forEach(cmd => {
+                    text += `*${ cmd.trigger }* 🠒 ${ cmd.description }\n`;
+                });
+            }
+            return chat.sendMessage(this.removeIdentation(text));
+        }
+
+        const commandData = await this.botDB.handleCommand(message);
+        if (commandData) {
+            console.log(`Command ${ command } called from ${ message.from }`);
+            await this.handleSendMessage(message, commandData);
+        } else {
+            console.log(`Command ${ command } not found`);
+            return chat.sendMessage(`Comando ${ command } não encontrado. Use !help ou !ajuda para ver os comandos disponíveis.`);
+        }
+    }
+
+    async handleSendMessage(message, commandData) {
+        let newMedia;
+        if (commandData.response.type == "text") {
+            await this.client.sendMessage(message.from, commandData.response.content);
+        } else if (commandData.response.type == "media") {
+            const mediaPath = this.getMediaFromMessage(commandData.response.path);
+            console.log(mediaPath);
+            if (mediaPath) {
+                newMedia = MessageMedia.fromFilePath(mediaPath);
+                await this.client.sendMessage(message.from, newMedia, {
+                    caption: commandData.caption || ''
+                });
+            } else {
+                console.error(`Media file not found: ${commandData.response.path}`);
+                await this.client.sendMessage(message.from, "Arquivo de mídia não encontrado.");
+            }
+        } else if (commandData.response.type == "sticker") {
+            const mediaPath = this.getMediaFromMessage(commandData.response.path);
+            if (mediaPath) {
+                newMedia = MessageMedia.fromFilePath(mediaPath);
+                await this.client.sendMessage(message.from, newMedia, { sendMediaAsSticker: true });
+            } else {
+                console.error(`Sticker file not found: ${commandData.response.path}`);
+                await this.client.sendMessage(message.from, "Arquivo de sticker não encontrado.");
+            }
+        }
     }
     
-    static async mentionAll(message) {
+    async mentionAll(message) {
         const chat = await message.getChat();
         if (!chat.isGroup) return message.reply('Esse comando só funciona em grupos!');
         
@@ -222,12 +193,18 @@ export default class Messages extends Utils {
         for (let participant of chat.participants) {
             mentions.push(`${participant.id.user}@c.us`);
             text += `@${participant.id.user} `;
-        }
+        };
 
-        await chat.sendMessage(text, { mentions });
+        const quotedMessage = await message.getQuotedMessage();
+        console.log({ quotedMessage })
+        if (quotedMessage) {
+            await chat.sendMessage(text, { mentions, quotedMessageId: quotedMessage.id });
+        } else {
+            await chat.sendMessage(text, { mentions });
+        }
     }
 
-    static loveMail(message) {
+    loveMail(message) {
         const responses = [
             "Ta precisando fuder hein...\nTomara que consiga!",
             "Que esse curreio te dê sorte!\nCurta o Sarraiálcool!",
