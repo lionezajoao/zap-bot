@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   zap-bot:
     image: lionezajoao/zap-bot:latest
@@ -7,15 +6,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - .:/usr/src/system
+    restart: on-failure
     env_file:
       - .env
     depends_on:
       - mongo
-
   mongo:
     image: mongo:latest
+    restart: on-failure
+    command:
+      - --auth
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=zapbot
     ports:
       - "27017:27017"
     volumes:
