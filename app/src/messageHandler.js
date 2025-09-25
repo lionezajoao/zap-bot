@@ -72,7 +72,7 @@ export default class Messages extends Utils {
     
                 this.client = new Client({
                     authStrategy: new RemoteAuth({
-                        clientId: 'Bot',
+                        clientId: process.env.CLIENT_ID ||'Bot',
                         dataPath: '../wwebjs-auth',
                         store: sessionHandler.store,
                         backupSyncIntervalMs: 600000
@@ -157,6 +157,7 @@ export default class Messages extends Utils {
 
     async handleSendMessage(message, commandData) {
         let newMedia;
+        const messageData = {};
         if (commandData.response.type == "text") {
             await this.client.sendMessage(message.from, commandData.response.content);
         } else if (commandData.response.type == "media") {
@@ -182,7 +183,20 @@ export default class Messages extends Utils {
             }
         }
     }
-    
+
+    async handleQuotedMessage(message, commandData) {
+        if (message.hasQuotedMsg) {
+            try {
+                const quotedMessage = await message.getQuotedMessage();
+                await chat.sendMessage(text, { mentions, quotedMessageId: quotedMessage.id._serialized, ignoreQuoteErrors: true });
+            } catch (error) {
+                console.error('Error sending quoted message:', error);
+            }
+        } else {
+            await chat.sendMessage(text, { mentions });
+        }
+    }
+
     async mentionAll(message) {
         const chat = await message.getChat();
         if (!chat.isGroup) return message.reply('Esse comando só funciona em grupos!');
@@ -194,37 +208,5 @@ export default class Messages extends Utils {
             mentions.push(`${participant.id.user}@c.us`);
             text += `@${participant.id.user} `;
         };
-
-        const quotedMessage = await message.getQuotedMessage();
-        console.log({ quotedMessage })
-        if (quotedMessage) {
-            await chat.sendMessage(text, { mentions, quotedMessageId: quotedMessage.id });
-        } else {
-            await chat.sendMessage(text, { mentions });
-        }
     }
-
-    loveMail(message) {
-        const responses = [
-            "Ta precisando fuder hein...\nTomara que consiga!",
-            "Que esse curreio te dê sorte!\nCurta o Sarraiálcool!",
-        ]
-
-        const meanResponses = [
-            "Você precisa mandar alguma mensagem né coisa burra",
-            "Sabe chegar em ninguém não, arrombade? Tu esqueceu da mensagem!"
-        ]
-
-        if(message.body.startsWith("!curreio")) {
-            const reply = message.body.split("!curreio");
-            if(reply[1] == "") {
-                message.reply(meanResponses[Math.floor(Math.random()*responses.length)]);
-            } else {
-                message.reply(`${ responses[Math.floor(Math.random()*responses.length)] }\n\nAgora, beba essa quantidade de shots: ${ Math.floor(Math.random()*5 + 1) }`);
-                this.client.sendMessage("120363143055632545@g.us", `*NOVO CORREIO!*\n\n${ reply[1] }`);
-            }
-            
-        }
-    }
-
 }
