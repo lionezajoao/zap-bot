@@ -128,8 +128,8 @@ export default class Messages extends Utils {
 
         if (!command.startsWith("!")) return;
 
-        if (command === "!all") {
-            console.log(`Command ${ command } called from ${ message.from }`);
+        if (command.startsWith("!all")) {
+            console.log(`Command !all called from ${ message.from }`);
             return await this.mentionAll(message);
         }
 
@@ -139,7 +139,7 @@ export default class Messages extends Utils {
             const commands = await this.botDB.listCommands();
             if (commands && commands.length > 0) {
                 commands.forEach(cmd => {
-                    text += `*${ cmd.trigger }* 🠒 ${ cmd.description }\n`;
+                    text += `*${ cmd.trigger }* -> ${ cmd.description }\n`;
                 });
             }
             return chat.sendMessage(this.removeIdentation(text));
@@ -148,65 +148,64 @@ export default class Messages extends Utils {
         const commandData = await this.botDB.handleCommand(message);
         if (commandData) {
             console.log(`Command ${ command } called from ${ message.from }`);
-            await this.handleSendMessage(message, commandData);
+            await this.handleMessageType(message, commandData);
         } else {
             console.log(`Command ${ command } not found`);
             return chat.sendMessage(`Comando ${ command } não encontrado. Use !help ou !ajuda para ver os comandos disponíveis.`);
         }
     }
 
-    async handleSendMessage(message, commandData) {
+    async handleMessageType(message, commandData) {
         let newMedia;
         const messageData = {};
+        
         if (commandData.response.type == "text") {
-            await this.client.sendMessage(message.from, commandData.response.content);
+            await this.handleSendMessage(message, commandData.response.content, messageData);
         } else if (commandData.response.type == "media") {
             const mediaPath = this.getMediaFromMessage(commandData.response.path);
-            console.log(mediaPath);
             if (mediaPath) {
                 newMedia = MessageMedia.fromFilePath(mediaPath);
-                await this.client.sendMessage(message.from, newMedia, {
-                    caption: commandData.caption || ''
-                });
+                await this.handleSendMessage(message, newMedia, messageData);
             } else {
                 console.error(`Media file not found: ${commandData.response.path}`);
-                await this.client.sendMessage(message.from, "Arquivo de mídia não encontrado.");
+                await this.handleSendMessage(message, "Arquivo de mídia não encontrado.", {});
             }
         } else if (commandData.response.type == "sticker") {
             const mediaPath = this.getMediaFromMessage(commandData.response.path);
             if (mediaPath) {
                 newMedia = MessageMedia.fromFilePath(mediaPath);
-                await this.client.sendMessage(message.from, newMedia, { sendMediaAsSticker: true });
+                messageData.sendMediaAsSticker = true;
+                await this.handleSendMessage(message, newMedia, messageData);
             } else {
                 console.error(`Sticker file not found: ${commandData.response.path}`);
-                await this.client.sendMessage(message.from, "Arquivo de sticker não encontrado.");
+                await this.handleSendMessage(message, "Arquivo de sticker não encontrado.", {});
             }
         }
     }
 
-    async handleQuotedMessage(message, commandData) {
+    async handleSendMessage(message, content, messageData) {
+        const chat = await message.getChat();
         if (message.hasQuotedMsg) {
-            try {
-                const quotedMessage = await message.getQuotedMessage();
-                await chat.sendMessage(text, { mentions, quotedMessageId: quotedMessage.id._serialized, ignoreQuoteErrors: true });
-            } catch (error) {
-                console.error('Error sending quoted message:', error);
-            }
-        } else {
-            await chat.sendMessage(text, { mentions });
+            const quotedMessage = await message.getQuotedMessage();
+            messageData.quotedMessageId = quotedMessage.id._serialized;
+            messageData.ignoreQuoteErrors = true;
         }
+        console.log(messageData);
+        await chat.sendMessage(content, { ...messageData });
     }
 
     async mentionAll(message) {
         const chat = await message.getChat();
         if (!chat.isGroup) return message.reply('Esse comando só funciona em grupos!');
         
-        let text = '';
+        let text = message.body.replace("!all", "").trim() + "\n" || "";
         let mentions = [];
 
         for (let participant of chat.participants) {
             mentions.push(`${participant.id.user}@c.us`);
             text += `@${participant.id.user} `;
         };
+
+        await this.handleSendMessage(message, text, { mentions });
     }
 }
