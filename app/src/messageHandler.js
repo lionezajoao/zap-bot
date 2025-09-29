@@ -190,15 +190,14 @@ export default class Messages extends Utils {
             messageData.quotedMessageId = quotedMessage.id._serialized;
             messageData.ignoreQuoteErrors = true;
         }
-        console.log(messageData);
         await chat.sendMessage(content, { ...messageData });
     }
 
     async mentionAll(message) {
         const chat = await message.getChat();
         if (!chat.isGroup) return message.reply('Esse comando só funciona em grupos!');
-        
-        let text = message.body.replace("!all", "").trim() + "\n" || "";
+
+        let text = message.body.replace("!all", "").trim() + "\n\n" ? message.body.replace("!all", "").trim() != "" : "";
         let mentions = [];
 
         for (let participant of chat.participants) {
