@@ -3,7 +3,7 @@ name: Deploy to Server
 on:
   push:
     branches:
-      - main
+        - main
 
 jobs:
   build-and-deploy:
@@ -25,14 +25,39 @@ jobs:
           push: true
           tags: lionezajoao/zap-bot:latest
 
-      - name: Deploy to server
+      - name: Create .env file
+        run: |
+          echo "S3_ID=${{ secrets.S3_ID }}" >> .env
+          echo "S3_SECRET=${{ secrets.S3_SECRET }}" >> .env
+          echo "S3_ENDPOINT=${{ secrets.S3_ENDPOINT }}" >> .env
+          echo "SESSION_BUCKET=${{ secrets.SESSION_BUCKET }}" >> .env
+          echo "EXECUTABLE_PATH=${{ secrets.EXECUTABLE_PATH }}" >> .env
+          echo "STORE_DEBUG=${{ secrets.STORE_DEBUG }}" >> .env
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+          echo "MONGO_ROOT_USER=${{ secrets.MONGO_ROOT_USER }}" >> .env
+          echo "MONGO_ROOT_PASSWORD=${{ secrets.MONGO_ROOT_PASSWORD }}" >> .env
+          echo "CLIENT_ID=${{ secrets.CLIENT_ID }}" >> .env
+
+      - name: Deploy and Prepare Environment on Server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /$HOME/zap-bot
+            echo "Preparing environment..."
+            if [ -d "$HOME/zap-bot" ]; then
+              echo "Directory exists: $HOME/zap-bot"
+            else
+              echo "Directory does not exist: $HOME/zap-bot"
+              mkdir -p $HOME/zap-bot
+            fi
+            echo "Copying docker-compose.yml to server..."
+            scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:$HOME/zap-bot/docker-compose.yml
+            echo "Creating .env file on server..."
+            scp -o StrictHostKeyChecking=no .env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:$HOME/zap-bot/.env
+            echo "Deploying application..."
+            cd $HOME/zap-bot
+            docker-compose down
             docker-compose pull
             docker-compose up -d
-            docker-compose down --rmi all
