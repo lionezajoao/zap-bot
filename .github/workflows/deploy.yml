@@ -33,14 +33,14 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             echo "Preparing environment..."
-            if [ -d "$HOME/zap-bot" ]; then
-              echo "Directory exists: $HOME/zap-bot"
-              cd $HOME/zap-bot
+            if [ -d "$HOME/${{ secrets.SSH_USER }}/zap-bot" ]; then
+              echo "Directory exists: $HOME/${{ secrets.SSH_USER }}/zap-bot"
+              cd $HOME/${{ secrets.SSH_USER }}/zap-bot
               git pull
             else
-              echo "Directory does not exist: $HOME/zap-bot"
-              git clone https://github.com/lionezajoao/zap-bot.git $HOME/zap-bot
-              cd $HOME/zap-bot
+              echo "Directory does not exist: $HOME/${{ secrets.SSH_USER }}/zap-bot"
+              git clone https://github.com/lionezajoao/zap-bot.git $HOME/${{ secrets.SSH_USER }}/zap-bot
+              cd $HOME/${{ secrets.SSH_USER }}/zap-bot
             fi
             echo "Creating .env file on server..."
             echo "S3_ID=${{ secrets.S3_ID }}" > .env
