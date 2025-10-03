@@ -1,28 +1,19 @@
+version: '3.8'
+
 services:
-  zap-bot:
-    image: lionezajoao/zap-bot:latest
-    container_name: zap-bot
-    build:
+  wppgo-bot:
+    build: 
       context: .
       dockerfile: Dockerfile
-    restart: always
-    env_file:
-      - .env
-    depends_on:
-      - mongo
-  mongo:
-    image: mongo:latest
-    restart: on-failure
-    command:
-      - --auth
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_INITDB_DATABASE=zapbot
-    ports:
-      - "27017:27017"
+    container_name: wppgo-bot
+    restart: unless-stopped
     volumes:
-      - mongo-data:/data/db
-volumes:
-  mongo-data:
-    driver: local
+      - ./data:/app/data  # Para persistir o banco de dados
+      - ./logs:/app/logs  # Para logs (opcional)
+    environment:
+      - TZ=America/Sao_Paulo  # Ajuste para seu timezone
+    tty: true
+    stdin_open: true
+    # Opcional: expor porta se precisar de webhook futuramente
+    # ports:
+    #   - "8080:8080"
