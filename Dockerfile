@@ -1,22 +1,30 @@
-FROM node:18-bookworm-slim
+FROM golang:1.24-alpine AS builder
 
-WORKDIR /usr/src/system
+RUN apk add --no-cache gcc musl-dev
 
-ENV CHROME_BIN="/usr/bin/chromium" \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true" \
-    NODE_ENV="production"
-RUN set -x \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-    fonts-freefont-ttf \
-    chromium \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-COPY package*.json ./
-
-RUN npm install
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-CMD ["npm", "start"]
+RUN CGO_ENABLED=1 GOOS=linux go build -o bot cmd/main.go
+
+FROM alpine:latest
+
+RUN apk add --no-cache ca-certificates tzdata
+
+RUN adduser -D -s /bin/sh botuser
+
+RUN mkdir -p /app/data /app/logs && \
+    chown -R botuser:botuser /app
+
+WORKDIR /app
+
+COPY --from=builder /app/bot .
+COPY --chown=botuser:botuser . .
+
+USER botuser
+
+CMD ["./bot"]

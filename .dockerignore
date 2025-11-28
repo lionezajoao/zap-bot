@@ -1,7 +1,29 @@
-node_modules
-npm-debug.log
-.git
+# Arquivos Git
+.git/
 .gitignore
-.dockerignore
-Dockerfile
+
+# Arquivos de desenvolvimento
+*.exe
+*.test
+*.prof
+*.log
+
+# Dependências locais
+vendor/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Dados locais (serão montados como volume)
+data/
+logs/
+*.db
+
+# Documentação
 README.md
+LICENSE
+
+# Arquivos temporários
+tmp/
+temp/

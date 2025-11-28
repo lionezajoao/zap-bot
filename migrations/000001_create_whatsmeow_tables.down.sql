@@ -1,0 +1,11 @@
+DROP TABLE devices;
+DROP TABLE signed_pre_keys;
+DROP TABLE sessions;
+DROP TABLE identities;
+DROP TABLE sender_keys;
+DROP TABLE app_state_keys;
+DROP TABLE app_state_version;
+DROP TABLE app_state_mutations;
+DROP TABLE contacts;
+DROP TABLE chat_settings;
+DROP TABLE privacy_tokens;

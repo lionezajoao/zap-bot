@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .dashboard-container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 1.5rem;
+        }
+        #status-container {
+            margin-bottom: 1.5rem;
+        }
+        #status {
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 15px;
+            color: white;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+        #qr-canvas {
+            width: 100% !important;
+            max-width: 300px;
+            height: auto !important;
+            margin-top: 1rem;
+        }
+        #disconnect-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #dc3545;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 1rem;
+        }
+        #logout-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background-color: #6c757d;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 1rem;
+        }
+        #logout-btn:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h1>Bot Status</h1>
+        <div id="status-container">
+            Status: <span id="status">Connecting...</span>
+        </div>
+        <div id="content-area">
+            <!-- QR Code or Disconnect button will be shown here -->
+        </div>
+        <form action="/logout" method="post" id="logout-form">
+            <button id="logout-btn" type="submit">Logout</button>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const statusEl = document.getElementById("status");
+            const contentArea = document.getElementById("content-area");
+            let qrPollingInterval = null;
+            let lastQRCode = "";
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => console.log("WebSocket connection established");
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "status") {
+                    updateStatus(data.payload);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("WebSocket connection closed");
+                updateStatus("disconnected");
+            };
+
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                updateStatus("disconnected");
+            };
+
+            function updateStatus(status) {
+                statusEl.textContent = status;
+                statusEl.className = status === 'connected' ? 'status-connected' : 'status-disconnected';
+
+                if (status === 'connected') {
+                    stopPollingQRCode();
+                    contentArea.innerHTML = `
+                        <form action="/disconnect" method="post">
+                            <button id="disconnect-btn" type="submit">Disconnect</button>
+                        </form>
+                    `;
+                } else {
+                    contentArea.innerHTML = '<p>Waiting for QR Code...</p><canvas id="qr-canvas"></canvas>';
+                    startPollingQRCode();
+                }
+            }
+
+            function startPollingQRCode() {
+                if (qrPollingInterval) return;
+                pollQRCode(); // Poll immediately
+                qrPollingInterval = setInterval(pollQRCode, 5000); // Poll every 5 seconds
+            }
+
+            function stopPollingQRCode() {
+                if (qrPollingInterval) {
+                    clearInterval(qrPollingInterval);
+                    qrPollingInterval = null;
+                }
+            }
+
+            async function pollQRCode() {
+                try {
+                    const response = await fetch('/api/qrcode');
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    const now = Math.floor(Date.now() / 1000);
+
+                    // WhatsApp QR codes expire in about 15-20 seconds
+                    if (data.qrCode && data.qrCode !== lastQRCode && (now - data.timestamp) < 20) {
+                        lastQRCode = data.qrCode;
+                        displayQRCode(data.qrCode);
+                    } else if (!data.qrCode) {
+                        lastQRCode = "";
+                        contentArea.innerHTML = '<p>Waiting for QR Code...</p><canvas id="qr-canvas"></canvas>';
+                    }
+                } catch (error) {
+                    console.error("Error polling for QR code:", error);
+                }
+            }
+
+            function displayQRCode(qrCodeString) {
+                const canvas = document.getElementById('qr-canvas');
+                if (canvas && qrCodeString) {
+                     new QRious({
+                        element: canvas,
+                        value: qrCodeString,
+                        size: 300,
+                        padding: 25
+                    });
+                    const p = contentArea.querySelector('p');
+                    if(p) p.textContent = "Scan the QR Code to connect";
+                }
+            }
+        });
+    </script>
+</body>
+</html>
