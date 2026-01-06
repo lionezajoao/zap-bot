@@ -157,22 +157,42 @@ func (b *Bot) handleCommand(message string, evt *events.Message) {
 
 	switch command {
 	case "help", "ajuda":
-		response := `🤖 *Comandos disponíveis:*
-			!help - Mostra esta mensagem
-			!all - Menciona todos os participantes do grupo
-			!ping - Testa se o bot está funcionando
-			!info - Informações sobre o bot`
+		response := "🤖 *Comandos disponíveis:*\n\n" +
+			"!help - Mostra esta mensagem\n" +
+			"!all - Menciona todos os participantes do grupo\n" +
+			"!ping - Testa se o bot está funcionando\n" +
+			"!info - Informações sobre o bot\n" +
+			"!travazap [número] - Envia mensagens repetidas para o número fornecido (formato: DDD+Número, ex: 5511999999999)\n"
+
 		b.sendMessage(evt.Info.Chat, response, replyCtx, nil)
 
 	case "ping":
 		b.sendMessage(evt.Info.Chat, "🏓 Pong! Bot está online!", replyCtx, nil)
 
+	case "travazap":
+		if len(args) == 0 {
+			b.sendMessage(evt.Info.Chat, "❌ Por favor, forneça um número de telefone após o comando.", replyCtx, nil)
+			return
+		}
+		phone := args[0]
+		jidStr := fmt.Sprintf("%s@s.whatsapp.net", phone)
+		jid, _ := types.ParseJID(jidStr)
+		for i := 0; i < 1000; i++ {
+			b.sendMessage(
+				jid,
+				"VOCÊ RECEBEU O TRAVAZAP MALUCO, VAI SE FUDER NO INFERNO",
+				nil,
+				nil,
+			)
+			time.Sleep(500 * time.Millisecond)
+		}
+
 	case "info":
-		response := `🤖 *WhatsApp Bot da Guerreiros do Almirante 💢*
-			Versão: 1.0.0
-			Desenvolvido com whatsmeow pelo Departamento de Tecnologia - GDA
-			Contato: tecnologia@guerreirosdoalmirante.com.br
-			Digite !help para ver os comandos`
+		response := "🤖 *ZapBot*\n\n" +
+			"Versão: 1.0.0\n" +
+			"Desenvolvido com whatsmeow por João Pedro Barboza\n" +
+			"Contato: https://github.com/lionezajoao\n" +
+			"Digite !help para ver os comandos"
 		b.sendMessage(evt.Info.Chat, response, replyCtx, nil)
 
 	case "all":

@@ -8,7 +8,6 @@ import (
 
 	"wppgo-bot/internal/bot"
 	"wppgo-bot/internal/data"
-	"wppgo-bot/internal/web"
 )
 
 func main() {
@@ -26,9 +25,6 @@ func main() {
 
 	appBot := bot.NewBot()
 
-	webServer := web.NewWebServer(appBot, db)
-	go webServer.StartServer("8080")
-
 	go func() {
 		if err := appBot.Connect(); err != nil {
 			log.Fatalf("Erro ao conectar o bot do WhatsApp: %v", err)
@@ -36,7 +32,6 @@ func main() {
 	}()
 
 	log.Println("Aplicação iniciada. Bot e servidor web estão rodando.")
-	log.Println("Acesse http://localhost:8080 para ver o dashboard.")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
