@@ -1,4 +1,3 @@
-node_modules/
 media/
-.wwebjs*
+local_session/
 .env
