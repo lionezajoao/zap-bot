@@ -1,0 +1,8 @@
+services:
+  bot:
+    image: lionezajoao/pyzap:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
